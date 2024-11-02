@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 conn = sqlite3.connect('university.db')
 cursor = conn.cursor()
@@ -81,11 +82,24 @@ def add_exam(date, course_id, max_score):
                    (date, course_id, max_score))
     conn.commit()
 
-
 def add_grade(student_id, exam_id, score):
+    cursor.execute("SELECT max_score FROM Exams WHERE id = ?", (exam_id,))
+    max_score = cursor.fetchone()
+
+    if max_score is None:
+        print("Возникла ошибка: экзамен не найден")
+        return
+
+    max_score = max_score[0]
+
+    if score > max_score:
+        print(f"Оценка не может превышать максимальную оценку {max_score}")
+        return
+
     cursor.execute("INSERT INTO Grades (student_id, exam_id, score) VALUES (?, ?, ?)",
                    (student_id, exam_id, score))
     conn.commit()
+    print("Оценка была добавлена")
 
 
 def update_student(student_id, name, surname, department, date_of_birth):
@@ -172,7 +186,7 @@ def get_average_score_by_course_and_student(course_id, student_id):
 
 
 def get_average_score_by_student(student_id):
-    cursor.execute("SELECT AVG(Score) FROM Grades WHERE student_id = ?",
+    cursor.execute("SELECT AVG(g.Score) FROM Grades g WHERE student_id = ?",
                    (student_id,))
     return cursor.fetchone()[0]
 
@@ -217,6 +231,16 @@ def delete_database():
 
 create_database()
 
+
+def check_date(input_date):
+    try:
+        datetime.strptime(input_date, "%Y-%m-%d")
+        return True
+    except ValueError:
+        print("Неверный формат даты. Пожалуйста введите дату рождения студента в формате (YYYY-MM-DD)")
+        return False
+
+
 while True:
     print("\nВыберите действие:")
     print("1. Добавить студента")
@@ -246,149 +270,187 @@ while True:
     match user_choice:
 
         case "1":
-
-            name = input("Введите имя студента: ")
-            surname = input("Введите фамилию студента: ")
-            department = input("Введите факультет студента: ")
-            date_of_birth = input("Введите дату рождения студента в формате (YYYY-MM-DD): ")
-
-            add_student(name, surname, department, date_of_birth)
+            try:
+                name = input("Введите имя студента: ")
+                surname = input("Введите фамилию студента: ")
+                department = input("Введите факультет студента: ")
+                date_of_birth = input("Введите дату рождения студента в формате (YYYY-MM-DD): ")
+                if check_date(date_of_birth):
+                    add_student(name, surname, department, date_of_birth)
+                    print(f"Студент {name} {surname} был добавлен")
+                else:
+                    print("Неккоректный формат ввода даты рождения")
+            except Exception as e:
+                print("Возникла ошибка при добавлении студента", e)
 
         case "2":
-
-            student_id = int(input("Введите id студента: "))
-            new_name = input("Введите новое имя студента: ")
-            new_surname = input("Введите новую фамилию студента: ")
-            new_department = input("Введите новое отделение студента: ")
-            new_date_of_birth = input("Введите новую дату рождения студента в формате (YYYY-MM-DD): ")
-
-            update_student(student_id, new_name, new_surname, new_department, new_date_of_birth)
+            try:
+                student_id = int(input("Введите id студента: "))
+                new_name = input("Введите новое имя студента: ")
+                new_surname = input("Введите новую фамилию студента: ")
+                new_department = input("Введите новое отделение студента: ")
+                new_date_of_birth = input("Введите новую дату рождения студента в формате (YYYY-MM-DD): ")
+                if check_date(new_date_of_birth):
+                    update_student(student_id, new_name, new_surname, new_department, new_date_of_birth)
+                    print(f"Информация о студенте с id {student_id} была изменена")
+                else:
+                    print("Неккоректный формат ввода даты рождения")
+            except Exception as e:
+                print("Возникла ошибка при изменении информации о студенте", e)
 
         case "3":
-
-            student_id = int(input("Введите id студента: "))
-
-            delete_student(student_id)
-            print(f"Студент с id {student_id} был удален")
+            try:
+                student_id = int(input("Введите id студента: "))
+                delete_student(student_id)
+                print(f"Студент с id {student_id} был удален")
+            except Exception as e:
+                print("Возникла ошибка при удалении студента с id {student_id}", e)
 
         case "4":
-            department = input("Введите факультет: ")
-
-            students = get_students_by_department(department)
-            for student in students:
-                print(student)
+            try:
+                department = input("Введите факультет: ")
+                students = get_students_by_department(department)
+                for student in students:
+                    print(student)
+            except Exception as e:
+                print("Не удалось получить список студентов по факультету", e)
 
         case "5":
-
-            course = input("Введите номер курса: ")
-            get_students_by_course(course)
+            try:
+                course = input("Введите номер курса: ")
+                students = get_students_by_course(course)
+                for student in students:
+                    print(student)
+            except Exception as e:
+                print("Не удалось получить список студентов, зачисленных на конкретный курс ", e)
 
         case "6":
-
-            name = input("Введите имя преподавателя: ")
-            surname = input("Введите фамилию преподавателя: ")
-            department = input("Введите кафедру преподавателя: ")
-
-            add_teacher(name, surname, department)
+            try:
+                name = input("Введите имя преподавателя: ")
+                surname = input("Введите фамилию преподавателя: ")
+                department = input("Введите кафедру преподавателя: ")
+                add_teacher(name, surname, department)
+                print(f"Преподаватель {name} {surname} был добавлен")
+            except Exception as e:
+                print("Возникла ошибка при добавлении преподавателя", e)
 
         case "7":
-
-            teacher_id = int(input("Введите id преподавателя: "))
-            new_name = input("Введите новое имя преподавателя: ")
-            new_surname = input("Введите новую фамилию преподавателя: ")
-            new_department = input("Введите новую кафеду преподавателя: ")
-
-            update_teacher(teacher_id, new_name, new_surname, new_department)
+            try:
+                teacher_id = int(input("Введите id преподавателя: "))
+                new_name = input("Введите новое имя преподавателя: ")
+                new_surname = input("Введите новую фамилию преподавателя: ")
+                new_department = input("Введите новую кафеду преподавателя: ")
+                update_teacher(teacher_id, new_name, new_surname, new_department)
+                print(f"Информация о преподавателе с id {teacher_id} была изменена")
+            except Exception as e:
+                print("Возникла ошибка при изменении информации о преподавателе", e)
 
         case "8":
-
-            teacher_id = int(input("Введите id преподавателя: "))
-
-            delete_teacher(teacher_id)
-            print(f"Преподаватель с id {teacher_id} был удален")
+            try:
+                teacher_id = int(input("Введите id преподавателя: "))
+                delete_teacher(teacher_id)
+                print(f"Преподаватель с id {teacher_id} был удален")
+            except Exception as e:
+                print(f"Возникла ошибка при попытке удалить преподавателя", e)
 
         case "9":
-
-            title = input("Введите название курса: ")
-            description = input("Введите описание курса: ")
-            teacher_id = int(input("Введите id преподавателя: "))
-
-            add_teacher(title, description, teacher_id)
+            try:
+                title = input("Введите название курса: ")
+                description = input("Введите описание курса: ")
+                teacher_id = int(input("Введите id преподавателя: "))
+                add_course(title, description, teacher_id)
+                print("Курс был добавлен")
+            except Exception as e:
+                print("Возникла ошибка при добавлении курса", e)
 
         case "10":
-
-            course_id = int(input("Введите id курса: "))
-            new_title = input("Введите новое название курса: ")
-            new_description = input("Введите новое описание курса: ")
-            teacher_id = int(input("Введите id преподавателя: "))
-
-            update_course(course_id, new_title, new_description, teacher_id)
+            try:
+                course_id = int(input("Введите id курса: "))
+                new_title = input("Введите новое название курса: ")
+                new_description = input("Введите новое описание курса: ")
+                teacher_id = int(input("Введите id преподавателя: "))
+                update_course(course_id, new_title, new_description, teacher_id)
+                print("Информация о курсе была обновлена")
+            except Exception as e:
+                print("Возникла ошибка при попытке изменить информацию о курсе", e)
 
         case "11":
-
-            course_id = int(input("Введите id курса: "))
-
-            delete_course(course_id)
-            print(f"курс с id {course_id} был удален")
+            try:
+                course_id = int(input("Введите id курса: "))
+                delete_course(course_id)
+                print(f"курс с id {course_id} был удален")
+            except Exception as e:
+                print("Возникла ошибка при попытке удалить курс", e)
 
         case "12":
-
-            teacher_id = int(input("Введите id преподавателя: "))
-
-            courses = get_courses_by_teacher(teacher_id)
-            for course in courses:
-                print(course)
+            try:
+                teacher_id = int(input("Введите id преподавателя: "))
+                courses = get_courses_by_teacher(teacher_id)
+                for course in courses:
+                    print(course)
+            except Exception as e:
+                print("Не удалось получить список курсов, читаемых определенным преподавателем", e)
 
         case "13":
-
-            date = input("Введите дату экзамена в формате(YYYY-MM-DD): ")
-            course_id = int(input("Введите id курса: "))
-            max_score = int(input("Введите максимальный балл: "))
-
-            add_exam(date, course_id, max_score)
+            try:
+                date = input("Введите дату экзамена в формате(YYYY-MM-DD): ")
+                course_id = int(input("Введите id курса: "))
+                max_score = int(input("Введите максимальный балл: "))
+                if check_date(date):
+                    add_exam(date, course_id, max_score)
+                    print("Экзамен был добавлен")
+                else:
+                    print("Некорректный формат даты экзамена")
+            except Exception as e:
+                print("Возникла ошибка при добавлении экзамена", e)
 
         case "14":
-
-            exam_id = int(input("Введите id экзамена: "))
-
-            delete_exam(exam_id)
-            print(f"экзамен с id {exam_id} был удален")
+            try:
+                exam_id = int(input("Введите id экзамена: "))
+                delete_exam(exam_id)
+                print(f"экзамен с id {exam_id} был удален")
+            except Exception as e:
+                print("Возникла ошибка при удалении экзамена", e)
 
         case "15":
-
-            student_id = int(input("Введите id студента: "))
-            exam_id = int(input("Введите id экзамена: "))
-            score = int(input("Введите результат: "))
-
-            add_grade(student_id, exam_id, score)
+            try:
+                student_id = int(input("Введите id студента: "))
+                exam_id = int(input("Введите id экзамена: "))
+                score = int(input("Введите результат: "))
+                add_grade(student_id, exam_id, score)
+            except Exception as e:
+                print(e)
 
         case "16":
-
-            course_id = int(input("Введите id курса: "))
-            student_id = int(input("Введите id студента: "))
-
-            grades = get_grades_by_course(course_id, student_id)
-            for grade in grades:
-                print(grade)
+            try:
+                course_id = int(input("Введите id курса: "))
+                student_id = int(input("Введите id студента: "))
+                grades = get_grades_by_course(course_id, student_id)
+                for grade in grades:
+                    print(grade)
+            except Exception as e:
+                print("Не удалось получить оценки студентов по определенному курсу", e)
 
         case "17":
-
-            course_id = int(input("Введите id курса: "))
-            student_id = int(input("Введите id студента: "))
-
-            get_average_score_by_course_and_student(course_id, student_id)
-
+            try:
+                course_id = int(input("Введите id курса: "))
+                student_id = int(input("Введите id студента: "))
+                print(get_average_score_by_course_and_student(course_id, student_id))
+            except Exception as e:
+                print("Не удалось получить средний бал студента по определенному курсу", e)
         case "18":
-
-            student_id = int(input("Введите id студента: "))
-
-            get_average_score_by_student(student_id)
+            try:
+                student_id = int(input("Введите id студента: "))
+                print(get_average_score_by_student(student_id))
+            except Exception as e:
+                print("Не удалось получить средний бал студента", e)
 
         case "19":
-
-            department = input("Введите факультет: ")
-
-            get_average_score_by_department(department)
+            try:
+                department = input("Введите факультет: ")
+                print(get_average_score_by_department(department))
+            except Exception as e:
+                print("Не удалось получить средний был по факультету", e)
 
         case "20":
             delete_database()
@@ -397,6 +459,8 @@ while True:
         case "21":
             print("Выполнен выход")
             break
+        case _:
+            print("Введите корректный номер действия")
 
 cursor.close()
 conn.close()
